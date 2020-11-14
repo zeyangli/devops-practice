@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: helloprod
+---
+apiVersion: v1
+data:
+  .dockerconfigjson: >-
+    eyJhdXRocyI6eyIxOTIuMTY4LjEuMjAwOjgwODgiOnsidXNlcm5hbWUiOiJhZG1pbiIsInBhc3N3b3JkIjoiSGFyYm9yMTIzNDUiLCJhdXRoIjoiWVdSdGFXNDZTR0Z5WW05eU1USXpORFU9In19fQ==
+kind: Secret
+metadata:
+  name: myharborsecret
+  namespace: helloprod
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: hello
+  name: hello
+  namespace: helloprod
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      k8s-app: hello
+  template:
+    metadata:
+      labels:
+        k8s-app: hello
+      name: hello
+      namespace: helloprod
+    spec:
+      containers:
+        - image: '${trigger[''properties''][''IMAGE'']}'
+          imagePullPolicy: Always
+          name: hello
+          ports:
+            - containerPort: 80
+              name: web
+              protocol: TCP
+      imagePullSecrets:
+        - name: myharborsecret
+      serviceAccountName: hello
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: hello
+  name: hello
+  namespace: helloprod
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: hello
+  name: hello
+  namespace: helloprod
+spec:
+  ports:
+    - name: web
+      port: 80
+      targetPort: 80
+  selector:
+    k8s-app: hello
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  name: demohello-service
+  namespace: helloprod
+spec:
+  rules:
+    - host: helloprod.idevops.site
+      http:
+        paths:
+          - backend:
+              serviceName: hello
+              servicePort: 80
+            path: /

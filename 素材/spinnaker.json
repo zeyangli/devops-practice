@@ -1,0 +1,615 @@
+{
+  "appConfig": {},
+  "keepWaitingPipelines": false,
+  "lastModifiedBy": "devops",
+  "limitConcurrent": true,
+  "roles": [
+    "devops-admin",
+    "yunweizu"
+  ],
+  "spelEvaluator": "v4",
+  "stages": [
+    {
+      "account": "default",
+      "cloudProvider": "kubernetes",
+      "manifests": [
+        {
+          "apiVersion": "v1",
+          "kind": "Namespace",
+          "metadata": {
+            "name": "hellodev"
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "data": {
+            ".dockerconfigjson": "eyJhdXRocyI6eyIxOTIuMTY4LjEuMjAwOjgwODgiOnsidXNlcm5hbWUiOiJhZG1pbiIsInBhc3N3b3JkIjoiSGFyYm9yMTIzNDUiLCJhdXRoIjoiWVdSdGFXNDZTR0Z5WW05eU1USXpORFU9In19fQ=="
+          },
+          "kind": "Secret",
+          "metadata": {
+            "name": "myharborsecret",
+            "namespace": "hellodev"
+          },
+          "type": "kubernetes.io/dockerconfigjson"
+        },
+        {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "hellodev"
+          },
+          "spec": {
+            "replicas": 3,
+            "revisionHistoryLimit": 10,
+            "selector": {
+              "matchLabels": {
+                "k8s-app": "hello"
+              }
+            },
+            "template": {
+              "metadata": {
+                "labels": {
+                  "k8s-app": "hello"
+                },
+                "name": "hello",
+                "namespace": "hellodev"
+              },
+              "spec": {
+                "containers": [
+                  {
+                    "image": "${trigger['properties']['IMAGE']}",
+                    "imagePullPolicy": "Always",
+                    "name": "hello",
+                    "ports": [
+                      {
+                        "containerPort": 80,
+                        "name": "web",
+                        "protocol": "TCP"
+                      }
+                    ]
+                  }
+                ],
+                "imagePullSecrets": [
+                  {
+                    "name": "myharborsecret"
+                  }
+                ],
+                "serviceAccountName": "hello"
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "kind": "ServiceAccount",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "hellodev"
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "kind": "Service",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "hellodev"
+          },
+          "spec": {
+            "ports": [
+              {
+                "name": "web",
+                "port": 80,
+                "targetPort": 80
+              }
+            ],
+            "selector": {
+              "k8s-app": "hello"
+            }
+          }
+        },
+        {
+          "apiVersion": "extensions/v1beta1",
+          "kind": "Ingress",
+          "metadata": {
+            "annotations": {
+              "kubernetes.io/ingress.class": "nginx"
+            },
+            "name": "demohello-service",
+            "namespace": "hellodev"
+          },
+          "spec": {
+            "rules": [
+              {
+                "host": "hellodev.idevops.site",
+                "http": {
+                  "paths": [
+                    {
+                      "backend": {
+                        "serviceName": "hello",
+                        "servicePort": 80
+                      },
+                      "path": "/"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "moniker": {
+        "app": "hello"
+      },
+      "name": "DEV发布",
+      "refId": "1",
+      "requisiteStageRefIds": [],
+      "skipExpressionEvaluation": false,
+      "source": "text",
+      "trafficManagement": {
+        "enabled": false,
+        "options": {
+          "enableTraffic": false,
+          "services": []
+        }
+      },
+      "type": "deployManifest"
+    },
+    {
+      "failPipeline": true,
+      "instructions": "请选择要进行的操作",
+      "judgmentInputs": [
+        {
+          "value": "rollback"
+        },
+        {
+          "value": "continue"
+        }
+      ],
+      "name": "是否发布UAT？",
+      "notifications": [],
+      "refId": "2",
+      "requisiteStageRefIds": [
+        "1"
+      ],
+      "type": "manualJudgment"
+    },
+    {
+      "account": "default",
+      "cloudProvider": "kubernetes",
+      "location": "hellouat",
+      "manifestName": "deployment hello",
+      "mode": "static",
+      "name": "DEV回滚",
+      "numRevisionsBack": 1,
+      "refId": "3",
+      "requisiteStageRefIds": [
+        "2"
+      ],
+      "stageEnabled": {
+        "expression": "${ execution['stages'][1].context.judgmentInput == \"rollback\" }",
+        "type": "expression"
+      },
+      "type": "undoRolloutManifest"
+    },
+    {
+      "account": "default",
+      "cloudProvider": "kubernetes",
+      "manifests": [
+        {
+          "apiVersion": "v1",
+          "kind": "Namespace",
+          "metadata": {
+            "name": "hellouat"
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "data": {
+            ".dockerconfigjson": "eyJhdXRocyI6eyIxOTIuMTY4LjEuMjAwOjgwODgiOnsidXNlcm5hbWUiOiJhZG1pbiIsInBhc3N3b3JkIjoiSGFyYm9yMTIzNDUiLCJhdXRoIjoiWVdSdGFXNDZTR0Z5WW05eU1USXpORFU9In19fQ=="
+          },
+          "kind": "Secret",
+          "metadata": {
+            "name": "myharborsecret",
+            "namespace": "hellouat"
+          },
+          "type": "kubernetes.io/dockerconfigjson"
+        },
+        {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "hellouat"
+          },
+          "spec": {
+            "replicas": 3,
+            "revisionHistoryLimit": 10,
+            "selector": {
+              "matchLabels": {
+                "k8s-app": "hello"
+              }
+            },
+            "template": {
+              "metadata": {
+                "labels": {
+                  "k8s-app": "hello"
+                },
+                "name": "hello",
+                "namespace": "hellouat"
+              },
+              "spec": {
+                "containers": [
+                  {
+                    "image": "${trigger['properties']['IMAGE']}",
+                    "imagePullPolicy": "Always",
+                    "name": "hello",
+                    "ports": [
+                      {
+                        "containerPort": 80,
+                        "name": "web",
+                        "protocol": "TCP"
+                      }
+                    ]
+                  }
+                ],
+                "imagePullSecrets": [
+                  {
+                    "name": "myharborsecret"
+                  }
+                ],
+                "serviceAccountName": "hello"
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "kind": "ServiceAccount",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "hellouat"
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "kind": "Service",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "hellouat"
+          },
+          "spec": {
+            "ports": [
+              {
+                "name": "web",
+                "port": 80,
+                "targetPort": 80
+              }
+            ],
+            "selector": {
+              "k8s-app": "hello"
+            }
+          }
+        },
+        {
+          "apiVersion": "extensions/v1beta1",
+          "kind": "Ingress",
+          "metadata": {
+            "annotations": {
+              "kubernetes.io/ingress.class": "nginx"
+            },
+            "name": "demohello-service",
+            "namespace": "hellouat"
+          },
+          "spec": {
+            "rules": [
+              {
+                "host": "hellouat.idevops.site",
+                "http": {
+                  "paths": [
+                    {
+                      "backend": {
+                        "serviceName": "hello",
+                        "servicePort": 80
+                      },
+                      "path": "/"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "moniker": {
+        "app": "hello"
+      },
+      "name": "UAT发布",
+      "refId": "4",
+      "requisiteStageRefIds": [
+        "2"
+      ],
+      "skipExpressionEvaluation": false,
+      "source": "text",
+      "stageEnabled": {
+        "expression": "${ execution['stages'][1].context.judgmentInput == \"continue\" }",
+        "type": "expression"
+      },
+      "trafficManagement": {
+        "enabled": false,
+        "options": {
+          "enableTraffic": false,
+          "services": []
+        }
+      },
+      "type": "deployManifest"
+    },
+    {
+      "failPipeline": true,
+      "instructions": "请选择要进行的操作",
+      "judgmentInputs": [
+        {
+          "value": "rollback"
+        },
+        {
+          "value": "continue"
+        }
+      ],
+      "name": "是否发布PROD？",
+      "notifications": [],
+      "refId": "5",
+      "requisiteStageRefIds": [
+        "4"
+      ],
+      "stageEnabled": {
+        "type": "expression"
+      },
+      "type": "manualJudgment"
+    },
+    {
+      "account": "default",
+      "cloudProvider": "kubernetes",
+      "location": "hellouat",
+      "manifestName": "deployment hello",
+      "mode": "static",
+      "name": "UAT回滚",
+      "numRevisionsBack": 1,
+      "refId": "6",
+      "requisiteStageRefIds": [
+        "5"
+      ],
+      "stageEnabled": {
+        "expression": "${ execution['stages'][4].context.judgmentInput == \"rollback\" }",
+        "type": "expression"
+      },
+      "type": "undoRolloutManifest"
+    },
+    {
+      "account": "default",
+      "cloudProvider": "kubernetes",
+      "manifests": [
+        {
+          "apiVersion": "v1",
+          "kind": "Namespace",
+          "metadata": {
+            "name": "helloprod"
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "data": {
+            ".dockerconfigjson": "eyJhdXRocyI6eyIxOTIuMTY4LjEuMjAwOjgwODgiOnsidXNlcm5hbWUiOiJhZG1pbiIsInBhc3N3b3JkIjoiSGFyYm9yMTIzNDUiLCJhdXRoIjoiWVdSdGFXNDZTR0Z5WW05eU1USXpORFU9In19fQ=="
+          },
+          "kind": "Secret",
+          "metadata": {
+            "name": "myharborsecret",
+            "namespace": "helloprod"
+          },
+          "type": "kubernetes.io/dockerconfigjson"
+        },
+        {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "helloprod"
+          },
+          "spec": {
+            "replicas": 3,
+            "revisionHistoryLimit": 10,
+            "selector": {
+              "matchLabels": {
+                "k8s-app": "hello"
+              }
+            },
+            "template": {
+              "metadata": {
+                "labels": {
+                  "k8s-app": "hello"
+                },
+                "name": "hello",
+                "namespace": "helloprod"
+              },
+              "spec": {
+                "containers": [
+                  {
+                    "image": "${trigger['properties']['IMAGE']}",
+                    "imagePullPolicy": "Always",
+                    "name": "hello",
+                    "ports": [
+                      {
+                        "containerPort": 80,
+                        "name": "web",
+                        "protocol": "TCP"
+                      }
+                    ]
+                  }
+                ],
+                "imagePullSecrets": [
+                  {
+                    "name": "myharborsecret"
+                  }
+                ],
+                "serviceAccountName": "hello"
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "kind": "ServiceAccount",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "helloprod"
+          }
+        },
+        {
+          "apiVersion": "v1",
+          "kind": "Service",
+          "metadata": {
+            "labels": {
+              "k8s-app": "hello"
+            },
+            "name": "hello",
+            "namespace": "helloprod"
+          },
+          "spec": {
+            "ports": [
+              {
+                "name": "web",
+                "port": 80,
+                "targetPort": 80
+              }
+            ],
+            "selector": {
+              "k8s-app": "hello"
+            }
+          }
+        },
+        {
+          "apiVersion": "extensions/v1beta1",
+          "kind": "Ingress",
+          "metadata": {
+            "annotations": {
+              "kubernetes.io/ingress.class": "nginx"
+            },
+            "name": "demohello-service",
+            "namespace": "helloprod"
+          },
+          "spec": {
+            "rules": [
+              {
+                "host": "helloprod.idevops.site",
+                "http": {
+                  "paths": [
+                    {
+                      "backend": {
+                        "serviceName": "hello",
+                        "servicePort": 80
+                      },
+                      "path": "/"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "moniker": {
+        "app": "hello"
+      },
+      "name": "PROD发布",
+      "refId": "7",
+      "requisiteStageRefIds": [
+        "5"
+      ],
+      "skipExpressionEvaluation": false,
+      "source": "text",
+      "stageEnabled": {
+        "expression": "${ execution['stages'][4].context.judgmentInput == \"continue\" }",
+        "type": "expression"
+      },
+      "trafficManagement": {
+        "enabled": false,
+        "options": {
+          "enableTraffic": false,
+          "services": []
+        }
+      },
+      "type": "deployManifest"
+    },
+    {
+      "failPipeline": true,
+      "instructions": "请选择要进行的操作",
+      "judgmentInputs": [
+        {
+          "value": "rollback"
+        },
+        {
+          "value": "continue"
+        }
+      ],
+      "name": "是否回滚？",
+      "notifications": [],
+      "refId": "8",
+      "requisiteStageRefIds": [
+        "7"
+      ],
+      "type": "manualJudgment"
+    },
+    {
+      "account": "default",
+      "cloudProvider": "kubernetes",
+      "location": "hellouat",
+      "manifestName": "deployment hello",
+      "mode": "static",
+      "name": "PROD回滚",
+      "numRevisionsBack": 1,
+      "refId": "9",
+      "requisiteStageRefIds": [
+        "8"
+      ],
+      "stageEnabled": {
+        "expression": "${ execution['stages'][7].context.judgmentInput == \"rollback\" }",
+        "type": "expression"
+      },
+      "type": "undoRolloutManifest"
+    }
+  ],
+  "triggers": [
+    {
+      "enabled": true,
+      "job": "demo-hello-service",
+      "master": "my-jenkins-master-01",
+      "propertyFile": "trigger.properties",
+      "runAsUser": "09183b61-edfc-4150-aa28-ef66e118047e@managed-service-account",
+      "type": "jenkins"
+    }
+  ],
+  "updateTs": "1605329225000"
+}
