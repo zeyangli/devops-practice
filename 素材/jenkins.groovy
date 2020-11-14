@@ -82,14 +82,15 @@ pipeline{
         stage("Push Image "){
             steps{
                 script{
+                  env.imageTag = "${branchName}" +"_" +"${commitSha}"[0..8]
                     withCredentials([usernamePassword(credentialsId: 'harbor-admin-user', passwordVariable: 'password', usernameVariable: 'username')]) {
 
                         sh """
                            sed -i -- "s/VER/${branchName}/g" app/index.html
                            docker login --username="${username}" -p ${password} ${registryServer}
-                           docker build -t ${imageName}:${branchName}_${commitSha} .
-                           docker push ${imageName}:${branchName}_${commitSha}
-                           docker rmi ${imageName}:${branchName}_${commitSha}
+                           docker build -t ${imageName}:${env.imageTag} .
+                           docker push ${imageName}:${env.imageTag}
+                           docker rmi ${imageName}:${env.imageTag}
 
                         """
                     }
@@ -102,7 +103,7 @@ pipeline{
                 script{
 
                     sh """
-                        echo IMAGE=${imageName}:${branchName}_${commitSha} >trigger.properties
+                        echo IMAGE=${imageName}:${env.imageTag} >trigger.properties
                         cat trigger.properties
                     """
                     archiveArtifacts allowEmptyArchive: true, artifacts: 'trigger.properties', followSymlinks: false
