@@ -30,6 +30,7 @@ pipeline{
                                               [defaultValue: '', key: 'object_kind', regexpFilter: '', value: '$.object_kind'],
                                               [defaultValue: '', key: 'before', regexpFilter: '', value: '$.before'],
                                               [defaultValue: '', key: 'after', regexpFilter: '', value: '$.after'],
+                                              [defaultValue: '', key: 'commitSha', regexpFilter: '', value: '$.checkout_sha'],
                                           ],        
                         genericRequestVariables: [[key: 'runOpts', regexpFilter: '']],
                         printContributedVariables: true, 
@@ -86,9 +87,9 @@ pipeline{
                         sh """
                            sed -i -- "s/VER/${branchName}/g" app/index.html
                            docker login --username="${username}" -p ${password} ${registryServer}
-                           docker build -t ${imageName}:${branchName}  .
-                           docker push ${imageName}:${branchName}
-                           docker rmi ${imageName}:${branchName}
+                           docker build -t ${imageName}:${branchName}_${commitSha} .
+                           docker push ${imageName}:${branchName}_${commitSha}
+                           docker rmi ${imageName}:${branchName}_${commitSha}
 
                         """
                     }
@@ -101,7 +102,7 @@ pipeline{
                 script{
 
                     sh """
-                        echo IMAGE=${imageName}:${branchName} >trigger.properties
+                        echo IMAGE=${imageName}:${branchName}_${commitSha} >trigger.properties
                         cat trigger.properties
                     """
                     archiveArtifacts allowEmptyArchive: true, artifacts: 'trigger.properties', followSymlinks: false
